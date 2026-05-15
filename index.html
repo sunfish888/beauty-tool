@@ -1,468 +1,241 @@
 <!DOCTYPE html>
-<html lang="zh-TW" data-theme="dark">
+<html lang="zh-TW" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChicTouch Pro | 專業影像美顏美體實驗室</title>
-    <!-- 核心依賴 -->
+    <title>ChicTouch Pro | 專業旅遊影像實驗室</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.0/dist/full.css" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
-    
     <style>
-        :root { --p-bg: #121212; --p-panel: #1e1e1e; --p-accent: #ff4d94; }
-        body { background-color: var(--p-bg); color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .sidebar-scroll { scrollbar-width: thin; scrollbar-color: #333 transparent; }
         .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        canvas { border-radius: 4px; border: 1px solid #333; }
-        .loading-shimmer { background: linear-gradient(90deg, #1e1e1e 25%, #2a2a2a 50%, #1e1e1e 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        .range-xs { height: 1rem; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        #main-canvas-container { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border-radius: 1rem; overflow: hidden; }
     </style>
 </head>
-<body class="h-screen overflow-hidden flex flex-col">
+<body class="bg-[#F8F9FA] h-screen flex flex-col font-sans text-slate-700">
 
-    <!-- 頂部導航欄 -->
-    <header class="h-14 border-b border-white/5 bg-black/40 backdrop-blur-md flex items-center justify-between px-6 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-gradient-to-tr from-pink-600 to-orange-400 rounded-lg flex items-center justify-center shadow-lg">
-                <span class="text-white font-black text-xs italic">CP</span>
+    <!-- 頂部功能列 -->
+    <header class="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-8 z-30">
+        <div class="flex items-center gap-4">
+            <div class="bg-pink-500 text-white p-2 rounded-xl shadow-lg shadow-pink-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" /></svg>
             </div>
-            <h1 class="font-black tracking-tighter text-lg uppercase">ChicTouch <span class="text-pink-500 text-sm">PRO</span></h1>
-            <div id="ai-badge" class="badge badge-ghost gap-2 text-[10px] opacity-50 ml-4">
-                <div class="w-1.5 h-1.5 bg-gray-500 rounded-full"></div> AI 引擎初始化中
+            <div>
+                <h1 class="text-xl font-black tracking-tight text-slate-800">CHICTOUCH <span class="text-pink-500 text-sm italic">PRO</span></h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Travel Image Lab</p>
             </div>
         </div>
-        <div class="flex items-center gap-4">
-            <button onclick="undo()" class="btn btn-ghost btn-xs">復原</button>
-            <button onclick="redo()" class="btn btn-ghost btn-xs">重做</button>
-            <div class="divider divider-horizontal mx-0"></div>
-            <button onclick="exportImage()" class="btn btn-primary btn-sm rounded-full px-6 font-bold shadow-lg shadow-pink-500/20">匯出成品</button>
+        <div class="flex items-center gap-3">
+            <div id="ai-status" class="badge badge-ghost badge-sm text-[10px] opacity-50">AI 引擎加載中...</div>
+            <button onclick="exportImage()" class="btn btn-secondary btn-sm rounded-full px-6 shadow-md shadow-pink-100 font-bold">匯出高解析照片</button>
         </div>
     </header>
 
     <main class="flex-1 flex overflow-hidden">
-        
-        <!-- 左側：圖片預覽區 -->
-        <section class="flex-1 relative flex items-center justify-center p-8 bg-[#0a0a0a]">
-            <!-- 工具浮動條 -->
-            <div class="absolute top-6 left-6 z-10 flex flex-col gap-2">
-                <button class="btn btn-square btn-sm bg-black/60 border-none text-white hover:bg-pink-600" title="放大"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg></button>
-                <button onclick="toggleCompare()" class="btn btn-square btn-sm bg-black/60 border-none text-white" title="前後對比"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/></svg></button>
+        <!-- 左側：編輯畫布 -->
+        <section class="flex-1 bg-[#F0F2F5] relative flex items-center justify-center p-12">
+            <div id="main-canvas-container" class="relative bg-white">
+                <canvas id="canvas"></canvas>
             </div>
 
-            <div id="drop-zone" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0a0a0a] transition-all">
-                <div class="w-24 h-24 rounded-3xl border-2 border-dashed border-white/20 flex items-center justify-center mb-6 group-hover:border-pink-500 cursor-pointer" onclick="document.getElementById('fileInput').click()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+            <!-- 上傳引導層 -->
+            <div id="upload-guide" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-sm transition-all">
+                <div class="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-6 cursor-pointer hover:scale-105 transition active:scale-95" onclick="document.getElementById('file-input').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                 </div>
-                <h2 class="text-xl font-bold text-white mb-2">開始您的專業編修</h2>
-                <p class="text-white/40 text-sm">拖放照片或點擊上載 (JPG, PNG, WebP)</p>
-                <input type="file" id="fileInput" class="hidden" accept="image/*" onchange="handleFileUpload(event)">
-            </div>
-
-            <canvas id="mainCanvas"></canvas>
-            
-            <!-- 資訊浮層 -->
-            <div id="img-info" class="absolute bottom-6 left-6 text-[10px] text-white/30 font-mono hidden">
-                DIM: <span id="info-dim">-</span> | SIZE: <span id="info-size">-</span> | MODEL: <span id="info-exif">-</span>
+                <h3 class="text-lg font-bold text-slate-800">開始修飾您的旅途回憶</h3>
+                <p class="text-slate-400 text-sm mt-2">支援 JPG, PNG, WebP 高解析度照片</p>
+                <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleImageUpload(event)">
             </div>
         </section>
 
         <!-- 右側：控制面板 -->
-        <aside class="w-80 bg-[#161616] border-l border-white/5 flex flex-col">
-            <div class="tabs tabs-boxed bg-transparent p-2 gap-1 border-b border-white/5 rounded-none">
-                <a class="tab tab-sm tab-active flex-1">編輯工具</a>
-                <a class="tab tab-sm flex-1">批次管理</a>
-            </div>
-
-            <div class="flex-1 overflow-y-auto sidebar-scroll p-4 space-y-6">
+        <aside class="w-80 bg-white border-l border-slate-100 flex flex-col shadow-2xl z-20">
+            <div class="flex-1 overflow-y-auto sidebar-scroll p-6 space-y-8">
                 
-                <!-- 1. 快速操作 -->
-                <div class="collapse collapse-arrow bg-white/5 rounded-2xl">
-                    <input type="checkbox" checked /> 
-                    <div class="collapse-title text-xs font-black uppercase tracking-widest text-white/40">一鍵美化</div>
-                    <div class="collapse-content space-y-3">
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="applyPreset('natural')" class="btn btn-outline btn-xs rounded-lg">自然清新</button>
-                            <button onclick="applyPreset('glam')" class="btn btn-outline btn-xs rounded-lg border-pink-500 text-pink-500">精緻名媛</button>
-                            <button onclick="applyPreset('studio')" class="btn btn-outline btn-xs rounded-lg">影棚質感</button>
-                            <button onclick="applyPreset('clear')" class="btn btn-outline btn-xs rounded-lg">高清通透</button>
-                        </div>
+                <!-- 1. 自動美顏 -->
+                <section>
+                    <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">智能預設</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="applyPreset('natural')" class="btn btn-outline btn-xs rounded-lg hover:bg-pink-500">自然清新</button>
+                        <button onclick="applyPreset('glam')" class="btn btn-outline btn-xs rounded-lg hover:bg-pink-500">精緻人像</button>
                     </div>
-                </div>
+                </section>
 
-                <!-- 2. 手動美顏 -->
-                <div class="collapse collapse-arrow bg-white/5 rounded-2xl">
-                    <input type="checkbox" checked /> 
-                    <div class="collapse-title text-xs font-black uppercase tracking-widest text-white/40">手動美顏</div>
-                    <div class="collapse-content space-y-5">
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[10px] text-white/60"><span>柔膚磨皮</span><span class="val">0</span></div>
-                            <input type="range" data-filter="blur" min="0" max="20" value="0" class="range range-xs range-secondary" oninput="updateFilter(this)">
-                        </div>
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[10px] text-white/60"><span>膚色提亮</span><span class="val">100</span></div>
-                            <input type="range" data-filter="brightness" min="50" max="150" value="100" class="range range-xs" oninput="updateFilter(this)">
-                        </div>
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[10px] text-white/60"><span>細節銳化</span><span class="val">0</span></div>
-                            <input type="range" data-filter="sharpen" min="0" max="100" value="0" class="range range-xs" oninput="updateFilter(this)">
-                        </div>
-                        <div class="divider my-1"></div>
-                        <!-- AI 臉部偵測連動 -->
-                        <div id="ai-face-controls" class="space-y-4 opacity-30 pointer-events-none">
-                            <div class="flex items-center justify-between"><span class="text-[10px] text-pink-400 font-bold">AI 五官微調</span><span class="badge badge-xs">偵測中</span></div>
-                            <div class="space-y-1">
-                                <div class="flex justify-between text-[10px] text-white/60"><span>眼睛放大</span><span class="val">0</span></div>
-                                <input type="range" data-ai="eye-scale" min="0" max="20" value="0" class="range range-xs range-accent">
-                            </div>
-                            <div class="space-y-1">
-                                <div class="flex justify-between text-[10px] text-white/60"><span>瘦臉強度</span><span class="val">0</span></div>
-                                <input type="range" data-ai="face-slim" min="0" max="20" value="0" class="range range-xs range-accent">
-                            </div>
-                        </div>
+                <!-- 2. 手動細修 -->
+                <section class="space-y-6">
+                    <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">手動美顏</h4>
+                    
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-bold"><span>柔膚 (Smooth)</span><span id="val-blur" class="text-pink-500">0</span></div>
+                        <input type="range" data-filter="blur" min="0" max="20" value="0" class="range range-xs range-secondary" oninput="updateFilter(this)">
                     </div>
-                </div>
 
-                <!-- 3. 美體調整 (Fall-back 版：區域縮放) -->
-                <div class="collapse collapse-arrow bg-white/5 rounded-2xl">
-                    <input type="checkbox" /> 
-                    <div class="collapse-title text-xs font-black uppercase tracking-widest text-white/40">身形美體</div>
-                    <div class="collapse-content space-y-4">
-                        <div class="alert alert-warning text-[9px] p-2 rounded-lg">
-                            <span>提示：美體功能建議在全身照下使用。</span>
-                        </div>
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[10px] text-white/60"><span>長腿拉伸</span><span class="val">0</span></div>
-                            <input type="range" data-body="height" min="100" max="115" value="100" class="range range-xs range-info" oninput="updateBody(this)">
-                        </div>
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[10px] text-white/60"><span>腰部纖細</span><span class="val">0</span></div>
-                            <input type="range" data-body="slim" min="85" max="100" value="100" class="range range-xs range-info" oninput="updateBody(this)">
-                        </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-bold"><span>亮肌 (Bright)</span><span id="val-bright" class="text-pink-500">100</span></div>
+                        <input type="range" data-filter="brightness" min="50" max="150" value="100" class="range range-xs" oninput="updateFilter(this)">
                     </div>
-                </div>
 
-                <!-- 4. 專業調色 -->
-                <div class="collapse collapse-arrow bg-white/5 rounded-2xl">
-                    <input type="checkbox" /> 
-                    <div class="collapse-title text-xs font-black uppercase tracking-widest text-white/40">專業調色</div>
-                    <div class="collapse-content space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <label class="text-[9px] text-white/40 uppercase">對比</label>
-                                <input type="range" data-filter="contrast" min="-50" max="50" value="0" class="range range-xs" oninput="updateFilter(this)">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[9px] text-white/40 uppercase">飽和</label>
-                                <input type="range" data-filter="saturation" min="-100" max="100" value="0" class="range range-xs" oninput="updateFilter(this)">
-                            </div>
-                        </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-bold"><span>鮮豔 (Vibrance)</span><span id="val-sat" class="text-pink-500">0</span></div>
+                        <input type="range" data-filter="saturation" min="-100" max="100" value="0" class="range range-xs" oninput="updateFilter(this)">
                     </div>
-                </div>
+                </section>
 
-                <!-- 5. 水印設定 -->
-                <div class="collapse collapse-arrow bg-white/5 rounded-2xl">
-                    <input type="checkbox" /> 
-                    <div class="collapse-title text-xs font-black uppercase tracking-widest text-white/40">水印與資訊</div>
-                    <div class="collapse-content space-y-4">
-                        <div class="form-control">
-                            <label class="label cursor-pointer p-0">
-                                <span class="label-text text-[10px]">啟用 EXIF 水印</span> 
-                                <input type="checkbox" id="wm-toggle" class="toggle toggle-xs toggle-primary" onchange="toggleWatermark()">
-                            </label>
-                        </div>
-                        <select id="wm-style" class="select select-bordered select-xs w-full text-[10px]" onchange="toggleWatermark()">
-                            <option value="minimal">簡潔白色文字</option>
-                            <option value="box">黑底反白條</option>
-                            <option value="exhibition">攝影展覽樣式</option>
-                        </select>
-                        <div class="space-y-1 text-[9px] opacity-40 italic">
-                            * 自動抓取：品牌、光圈、快門、ISO
-                        </div>
+                <!-- 3. 美體調整 (Fallback) -->
+                <section class="space-y-4">
+                    <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">身形修飾</h4>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-bold"><span>長腿拉伸</span><span id="val-height" class="text-pink-500">100%</span></div>
+                        <input type="range" id="body-height" min="100" max="115" value="100" class="range range-xs range-accent" oninput="updateBody(this)">
                     </div>
-                </div>
+                </section>
+
+                <!-- 4. 專業水印 -->
+                <section class="space-y-4">
+                    <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">相片資訊水印</h4>
+                    <div class="form-control">
+                        <label class="label cursor-pointer p-0">
+                            <span class="label-text font-bold text-xs">顯示相機 EXIF 數據</span> 
+                            <input type="checkbox" id="wm-toggle" class="toggle toggle-secondary toggle-sm" onchange="renderWatermark()">
+                        </label>
+                    </div>
+                </section>
 
             </div>
 
-            <!-- 底部隱私提示 -->
-            <div class="p-4 border-t border-white/5 bg-black/20">
-                <p class="text-[9px] text-white/20 leading-relaxed text-center">
-                    隱私聲明：所有影像處理均在您的瀏覽器記憶體中完成，照片不會上傳至任何伺服器。
-                </p>
+            <!-- 底部資訊 -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100">
+                <div class="flex items-center gap-2 opacity-40 grayscale mb-2">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/af/Adobe_Photoshop_CC_icon.svg" class="w-3 h-3">
+                    <span class="text-[9px] font-bold">Powered by Fabric Rendering Engine</span>
+                </div>
+                <p class="text-[9px] text-slate-400 leading-tight">所有處理均在本地完成，100% 隱私安全保護</p>
             </div>
         </aside>
     </main>
 
-    <!-- 腳本邏輯 -->
     <script>
-        let canvas, mainImage, originalImageData;
-        let history = [], historyStep = -1;
-        let exifData = {};
+        let canvas, mainImg, exifData = {};
 
-        // 1. 初始化應用
+        // 初始化
         window.onload = async () => {
-            initCanvas();
+            canvas = new fabric.Canvas('canvas', { selection: false });
             await initAI();
-            setupEvents();
         };
 
-        function initCanvas() {
-            canvas = new fabric.Canvas('mainCanvas', {
-                backgroundColor: '#0a0a0a',
-                preserveObjectStacking: true,
-                selection: false
-            });
-            window.addEventListener('resize', resizeCanvas);
-            resizeCanvas();
-        }
-
-        function resizeCanvas() {
-            const container = document.querySelector('section');
-            canvas.setDimensions({
-                width: container.clientWidth - 100,
-                height: container.clientHeight - 100
-            });
-            canvas.renderAll();
-        }
-
-        // 2. AI 偵測模組
         async function initAI() {
-            const badge = document.getElementById('ai-badge');
+            const status = document.getElementById('ai-status');
             try {
-                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights/';
+                const URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights/';
                 await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(URL)
                 ]);
-                badge.innerHTML = '<div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div> AI 引擎已就緒';
-                badge.classList.replace('opacity-50', 'opacity-100');
+                status.innerText = "AI 偵測就緒";
+                status.classList.replace('badge-ghost', 'badge-success');
+                status.classList.add('text-white');
             } catch (e) {
-                badge.innerHTML = '<div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div> AI 降級模式';
-                console.error("AI Load Failed", e);
+                status.innerText = "基礎模式";
             }
         }
 
-        // 3. 圖片載入與處理
-        function handleFileUpload(e) {
+        function handleImageUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            // 顯示資訊
-            document.getElementById('info-size').innerText = (file.size / 1024 / 1024).toFixed(2) + 'MB';
-            
             const reader = new FileReader();
             reader.onload = function(f) {
                 const imgElement = new Image();
                 imgElement.src = f.target.result;
                 imgElement.onload = function() {
-                    // 讀取 EXIF
                     EXIF.getData(imgElement, function() {
                         exifData = EXIF.getAllTags(this);
-                        document.getElementById('info-exif').innerText = (exifData.Model || '無 EXIF');
-                        document.getElementById('info-dim').innerText = `${imgElement.width}x${imgElement.height}`;
                     });
 
                     fabric.Image.fromURL(f.target.result, (img) => {
                         canvas.clear();
-                        const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.9;
-                        img.set({
-                            scaleX: scale,
-                            scaleY: scale,
-                            selectable: false,
-                            evented: false
-                        });
+                        const scale = Math.min(800 / img.width, 600 / img.height);
+                        img.set({ scaleX: scale, scaleY: scale, selectable: false });
+                        canvas.setDimensions({ width: img.getScaledWidth(), height: img.getScaledHeight() });
                         canvas.add(img);
-                        canvas.centerObject(img);
-                        mainImage = img;
-                        originalImageData = f.target.result; // 保存原圖用於對比
-                        
-                        document.getElementById('drop-zone').classList.add('hidden');
-                        document.getElementById('img-info').classList.remove('hidden');
-                        
-                        saveHistory();
-                        detectFaces(imgElement);
+                        mainImg = img;
+                        document.getElementById('upload-guide').classList.add('opacity-0', 'pointer-events-none');
                     });
                 };
             };
             reader.readAsDataURL(file);
         }
 
-        async function detectFaces(imgEl) {
-            const detections = await faceapi.detectAllFaces(imgEl).withFaceLandmarks();
-            if (detections.length > 0) {
-                const ctrl = document.getElementById('ai-face-controls');
-                ctrl.classList.remove('opacity-30', 'pointer-events-none');
-                ctrl.querySelector('.badge').innerText = `偵測到 ${detections.length} 人`;
-                ctrl.querySelector('.badge').classList.add('badge-secondary');
-            }
-        }
-
-        // 4. 影像處理引擎 (濾鏡)
         function updateFilter(el) {
-            if (!mainImage) return;
+            if (!mainImg) return;
             const type = el.dataset.filter;
             const val = parseFloat(el.value);
-            el.previousElementSibling.querySelector('.val').innerText = val;
+            document.getElementById(`val-${type}`).innerText = val;
 
+            const f = fabric.Image.filters;
             const filterMap = {
-                'brightness': new fabric.Image.filters.Brightness({ brightness: (val - 100) / 100 }),
-                'blur': new fabric.Image.filters.Blur({ blur: val / 20 }),
-                'contrast': new fabric.Image.filters.Contrast({ contrast: val / 100 }),
-                'saturation': new fabric.Image.filters.Saturation({ saturation: val / 100 })
+                'brightness': new f.Brightness({ brightness: (val - 100) / 100 }),
+                'blur': new f.Blur({ blur: val / 15 }),
+                'saturation': new f.Saturation({ saturation: val / 100 })
             };
 
-            // 尋找或更新濾鏡
-            const existingIdx = mainImage.filters.findIndex(f => f.type === type.charAt(0).toUpperCase() + type.slice(1));
-            if (existingIdx >= 0) mainImage.filters[existingIdx] = filterMap[type];
-            else mainImage.filters.push(filterMap[type]);
+            const idx = mainImg.filters.findIndex(it => it.type === type.charAt(0).toUpperCase() + type.slice(1));
+            if (idx >= 0) mainImg.filters[idx] = filterMap[type];
+            else mainImg.filters.push(filterMap[type]);
 
-            mainImage.applyFilters();
+            mainImg.applyFilters();
             canvas.renderAll();
         }
 
-        // 5. 美體引擎 (Fall-back：比例縮放)
         function updateBody(el) {
-            if (!mainImage) return;
-            const type = el.dataset.body;
-            const val = parseFloat(el.value);
-            el.previousElementSibling.querySelector('.val').innerText = type === 'height' ? `+${val-100}%` : `-${100-val}%`;
-
-            if (type === 'height') mainImage.set('scaleY', (canvas.height / mainImage.height * 0.9) * (val/100));
-            if (type === 'slim') mainImage.set('scaleX', (canvas.width / mainImage.width * 0.9) * (val/100));
-            
+            if (!mainImg) return;
+            const val = el.value;
+            document.getElementById('val-height').innerText = val + '%';
+            mainImg.set('scaleY', (canvas.height / mainImg.height) * (val/100));
             canvas.renderAll();
         }
 
-        // 6. 水印引擎
-        function toggleWatermark() {
-            if (!mainImage) return;
-            const isOn = document.getElementById('wm-toggle').checked;
-            const style = document.getElementById('wm-style').value;
+        function renderWatermark() {
+            const old = canvas.getObjects('text');
+            old.forEach(o => canvas.remove(o));
             
-            // 移除舊水印
-            const oldWms = canvas.getObjects().filter(obj => obj.id === 'wm-group');
-            oldWms.forEach(o => canvas.remove(o));
-
-            if (!isOn) return;
-
-            const brand = exifData.Make || "ChicTouch";
-            const model = exifData.Model || "Pro AI Engine";
-            const settings = exifData.FNumber ? `f/${exifData.FNumber} ${exifData.ExposureTime}s ISO${exifData.ISOSpeedRatings}` : "PRO CAPTURE";
-            
-            const text = new fabric.Text(`${brand} ${model} | ${settings}`, {
-                fontSize: 12,
-                fill: style === 'minimal' ? '#fff' : '#fff',
-                fontFamily: 'Courier New',
-                fontWeight: 'bold'
-            });
-
-            const rect = new fabric.Rect({
-                width: text.width + 20,
-                height: text.height + 10,
-                fill: style === 'box' ? 'rgba(0,0,0,0.8)' : 'transparent',
-                rx: 5, ry: 5
-            });
-
-            const group = new fabric.Group([rect, text], {
-                id: 'wm-group',
-                left: mainImage.left + 20,
-                top: mainImage.top + mainImage.getScaledHeight() - 40,
-                selectable: true
-            });
-
-            canvas.add(group);
-            canvas.renderAll();
-        }
-
-        // 7. 預設模式
-        function applyPreset(type) {
-            if (!mainImage) return;
-            resetFilters();
-            if (type === 'natural') {
-                updateFilterValue('brightness', 105);
-                updateFilterValue('saturation', 10);
-            } else if (type === 'glam') {
-                updateFilterValue('blur', 5);
-                updateFilterValue('brightness', 115);
-                updateFilterValue('contrast', 5);
+            if (document.getElementById('wm-toggle').checked) {
+                const model = exifData.Model || "Professional Camera";
+                const date = exifData.DateTime || new Date().toLocaleDateString();
+                const wm = new fabric.Text(`${model} | ${date}`, {
+                    fontSize: 14, fill: '#fff', left: 20, top: canvas.height - 30,
+                    fontFamily: 'Helvetica', backgroundColor: 'rgba(0,0,0,0.3)'
+                });
+                canvas.add(wm);
             }
-            saveHistory();
+            canvas.renderAll();
+        }
+
+        function applyPreset(type) {
+            if (type === 'glam') {
+                updateFilterValue('blur', 8);
+                updateFilterValue('brightness', 110);
+            } else {
+                updateFilterValue('blur', 0);
+                updateFilterValue('brightness', 100);
+            }
         }
 
         function updateFilterValue(type, val) {
-            const el = document.querySelector(`input[data-filter="${type}"]`);
-            if (el) {
-                el.value = val;
-                updateFilter(el);
-            }
+            const input = document.querySelector(`input[data-filter="${type}"]`);
+            input.value = val;
+            updateFilter(input);
         }
 
-        function resetFilters() {
-            mainImage.filters = [];
-            mainImage.applyFilters();
-            canvas.renderAll();
-        }
-
-        // 8. 匯出與歷史管理
         function exportImage() {
-            if (!mainImage) return;
-            const dataURL = canvas.toDataURL({
-                format: 'jpeg',
-                quality: 0.95,
-                multiplier: 2 // 雙倍解析度匯出
-            });
             const link = document.createElement('a');
             link.download = `ChicTouch_Pro_${Date.now()}.jpg`;
-            link.href = dataURL;
+            link.href = canvas.toDataURL({ format: 'jpeg', quality: 0.9, multiplier: 2 });
             link.click();
-        }
-
-        function saveHistory() {
-            history = history.slice(0, historyStep + 1);
-            history.push(canvas.toJSON());
-            historyStep++;
-        }
-
-        function undo() {
-            if (historyStep > 0) {
-                historyStep--;
-                canvas.loadFromJSON(history[historyStep], canvas.renderAll.bind(canvas));
-            }
-        }
-
-        function redo() {
-            if (historyStep < history.length - 1) {
-                historyStep++;
-                canvas.loadFromJSON(history[historyStep], canvas.renderAll.bind(canvas));
-            }
-        }
-
-        function toggleCompare() {
-            // 簡單對比：長按或切換時暫時移除濾鏡
-            const currentFilters = [...mainImage.filters];
-            mainImage.filters = [];
-            mainImage.applyFilters();
-            canvas.renderAll();
-            setTimeout(() => {
-                mainImage.filters = currentFilters;
-                mainImage.applyFilters();
-                canvas.renderAll();
-            }, 1000);
-        }
-
-        function setupEvents() {
-            const dz = document.getElementById('drop-zone');
-            dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('bg-white/5'); });
-            dz.addEventListener('dragleave', () => dz.classList.remove('bg-white/5'));
-            dz.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const files = e.dataTransfer.files;
-                if (files.length > 0) handleFileUpload({ target: { files: files } });
-            });
         }
     </script>
 </body>
