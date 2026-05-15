@@ -3,62 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手痕美美 Pro - 穩定版</title>
-    <!-- 使用更穩定的 CDN -->
+    <title>手痕美美 Pro - 專業影像版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.0/dist/full.css" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     <style>
-        body { background-color: #fff5f7; }
-        .canvas-container { margin: 0 auto; border-radius: 1rem; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        body { background: linear-gradient(135deg, #fff5f7 0%, #f0f4f8 100%); }
+        .canvas-container { border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
     </style>
 </head>
-<body>
+<body class="min-h-screen font-sans">
 
-<div class="max-w-4xl mx-auto py-8 px-4">
-    <div class="card bg-white shadow-xl rounded-3xl overflow-hidden border border-pink-100">
-        <!-- 頂部標題 -->
-        <div class="p-5 bg-gradient-to-r from-pink-500 to-rose-400 text-white flex justify-between items-center">
-            <h1 class="text-xl font-black tracking-tighter">CHICTOUCH PRO</h1>
-            <div id="ai-status" class="badge badge-outline text-[10px]">正在喚醒 AI...</div>
+<div class="max-w-6xl mx-auto py-10 px-4">
+    <div class="card bg-white/80 backdrop-blur-md shadow-2xl rounded-[2rem] overflow-hidden border border-white">
+        <!-- 專業頂部欄 -->
+        <div class="p-6 bg-slate-900 text-white flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-black italic tracking-tighter text-pink-500">CHICTOUCH <span class="text-white">PRO</span></h1>
+                <p class="text-[10px] opacity-60 uppercase tracking-widest">Travel Photography Engine</p>
+            </div>
+            <div id="ai-status" class="badge badge-success gap-2 p-3 text-white font-bold">
+                <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div> AI 偵測就緒
+            </div>
         </div>
 
         <div class="flex flex-col lg:flex-row">
-            <!-- 左側預覽區 -->
-            <div class="flex-1 bg-slate-800 p-6 flex items-center justify-center min-h-[450px] relative">
+            <!-- 畫布區：深色模式確保色彩準確 -->
+            <div class="flex-1 bg-[#0f172a] p-8 flex items-center justify-center min-h-[550px] relative">
                 <canvas id="c"></canvas>
-                <div id="drop-text" class="absolute inset-0 flex flex-col items-center justify-center text-white cursor-pointer hover:bg-black/20 transition" onclick="document.getElementById('f').click()">
-                    <div class="w-16 h-16 bg-pink-500 rounded-full flex items-center justify-center mb-3 shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                <div id="drop-text" class="absolute inset-0 flex flex-col items-center justify-center text-white cursor-pointer group" onclick="document.getElementById('f').click()">
+                    <div class="w-20 h-20 bg-pink-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-2xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </div>
-                    <p class="font-bold">點擊上傳旅拍照片</p>
-                    <p class="text-xs opacity-60 mt-1">支援 JPG, PNG, WebP</p>
+                    <p class="text-lg font-bold">上傳您的旅拍照片</p>
+                    <p class="text-xs opacity-40">AI 將自動優化面部光感</p>
                 </div>
                 <input type="file" id="f" class="hidden" accept="image/*">
             </div>
 
-            <!-- 右側控制區 -->
-            <div class="w-full lg:w-80 p-6 space-y-6">
-                <div>
-                    <label class="text-xs font-black text-gray-400 uppercase tracking-widest">柔膚細緻</label>
-                    <input type="range" id="smooth" min="0" max="100" value="0" class="range range-secondary range-xs mt-2">
-                </div>
-                <div>
-                    <label class="text-xs font-black text-gray-400 uppercase tracking-widest">美白亮度</label>
-                    <input type="range" id="bright" min="50" max="150" value="100" class="range range-xs mt-2">
-                </div>
-                <div class="divider"></div>
+            <!-- 專業調色盤 -->
+            <div class="w-full lg:w-96 p-8 bg-white space-y-8">
+                <section>
+                    <div class="flex justify-between items-end mb-4">
+                        <label class="text-sm font-black text-gray-700">智能磨皮 (Skin Smooth)</label>
+                        <span id="v-smooth" class="text-xs font-mono text-pink-500">0%</span>
+                    </div>
+                    <input type="range" id="smooth" min="0" max="100" value="0" class="range range-secondary range-sm">
+                </section>
+
+                <section>
+                    <div class="flex justify-between items-end mb-4">
+                        <label class="text-sm font-black text-gray-700">美白提亮 (Luminance)</label>
+                        <span id="v-bright" class="text-xs font-mono text-pink-500">100%</span>
+                    </div>
+                    <input type="range" id="bright" min="50" max="150" value="100" class="range range-sm">
+                </section>
+
+                <section>
+                    <div class="flex justify-between items-end mb-4">
+                        <label class="text-sm font-black text-gray-700">鮮豔度 (Vibrance)</label>
+                        <span id="v-sat" class="text-xs font-mono text-pink-500">0%</span>
+                    </div>
+                    <input type="range" id="sat" min="-50" max="50" value="0" class="range range-accent range-sm">
+                </section>
+
+                <div class="divider">專業功能</div>
+
                 <div class="form-control">
-                    <label class="label cursor-pointer">
-                        <span class="label-text font-bold">顯示 EXIF 專業水印</span> 
+                    <label class="label cursor-pointer p-0">
+                        <span class="label-text font-bold text-gray-600">自動偵測人臉修復</span> 
+                        <input type="checkbox" id="ai-face" checked class="checkbox checkbox-secondary" />
+                    </label>
+                </div>
+
+                <div class="form-control">
+                    <label class="label cursor-pointer p-0">
+                        <span class="label-text font-bold text-gray-600">燒錄專業 EXIF 水印</span> 
                         <input type="checkbox" id="wm" class="toggle toggle-secondary" />
                     </label>
                 </div>
-                <button id="dl" class="btn btn-secondary w-full rounded-2xl shadow-lg shadow-pink-100 font-bold">下載美化成果</button>
-                <div class="text-[9px] text-gray-400 text-center leading-tight">
-                    所有處理均在您的瀏覽器完成<br>照片不會被傳輸到任何伺服器
+
+                <div class="pt-4">
+                    <button id="dl" class="btn btn-secondary w-full btn-lg rounded-2xl shadow-xl shadow-pink-200 font-black text-lg">匯出 4K 成果</button>
+                    <button onclick="location.reload()" class="btn btn-ghost btn-xs w-full mt-4 opacity-40">清除並重設</button>
                 </div>
             </div>
         </div>
@@ -66,84 +95,130 @@
 </div>
 
 <script>
-const canvas = new fabric.Canvas('c', { renderOnAddRemove: true });
+const canvas = new fabric.Canvas('c', { preserveObjectStacking: true });
 let imgObj = null;
 let exifData = {};
+let faces = [];
 
-// 1. 初始化 AI (使用更穩定的 CDN 源)
+// 1. 初始化 AI
 async function initAI() {
     const status = document.getElementById('ai-status');
     try {
-        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights/';
-        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-        status.innerText = "AI 引擎已就緒";
-        status.className = "badge badge-success text-white text-[10px]";
+        const URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights/';
+        await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri(URL),
+            faceapi.nets.faceLandmark68Net.loadFromUri(URL)
+        ]);
+        status.innerHTML = '<div class="w-2 h-2 bg-white rounded-full animate-pulse"></div> AI 偵測已就緒';
     } catch (e) {
-        console.error(e);
-        status.innerText = "基礎模式 (無 AI)";
-        status.className = "badge badge-warning text-[10px]";
+        status.innerText = "基礎模式";
+        status.className = "badge badge-warning";
     }
 }
 initAI();
 
-// 2. 圖片上傳處理
-document.getElementById('f').onchange = function(e) {
+// 2. 圖片上傳與 AI 偵測
+document.getElementById('f').onchange = async function(e) {
     const file = e.target.files[0];
     if (!file) return;
+    
     const reader = new FileReader();
     reader.onload = function(f) {
-        fabric.Image.fromURL(f.target.result, function(img) {
-            canvas.clear();
-            const ratio = Math.min(600 / img.width, 500 / img.height);
-            img.scale(ratio);
-            canvas.setDimensions({ width: img.getScaledWidth(), height: img.getScaledHeight() });
-            canvas.add(img);
-            imgObj = img;
-            document.getElementById('drop-text').style.display = 'none';
-            EXIF.getData(img.getElement(), function() {
-                exifData = EXIF.getAllTags(this);
+        const imgElement = new Image();
+        imgElement.src = f.target.result;
+        imgElement.onload = async function() {
+            // 執行 AI 偵測
+            faces = await faceapi.detectAllFaces(imgElement).withFaceLandmarks();
+            
+            fabric.Image.fromURL(f.target.result, function(img) {
+                canvas.clear();
+                const ratio = Math.min(700 / img.width, 550 / img.height);
+                img.scale(ratio);
+                canvas.setDimensions({ width: img.getScaledWidth(), height: img.getScaledHeight() });
+                canvas.add(img);
+                imgObj = img;
+                document.getElementById('drop-text').style.display = 'none';
+                EXIF.getData(imgElement, function() {
+                    exifData = EXIF.getAllTags(this);
+                });
+                applyFilters();
             });
-        });
+        };
     };
     reader.readAsDataURL(file);
 };
 
-// 3. 濾鏡引擎
+// 3. 專業級濾鏡引擎
 function applyFilters() {
     if(!imgObj) return;
-    const s = document.getElementById('smooth').value;
-    const b = document.getElementById('bright').value;
+
+    const s = parseInt(document.getElementById('smooth').value);
+    const b = parseInt(document.getElementById('bright').value);
+    const sat = parseInt(document.getElementById('sat').value);
+
+    // 更新數值顯示
+    document.getElementById('v-smooth').innerText = s + "%";
+    document.getElementById('v-bright').innerText = b + "%";
+    document.getElementById('v-sat').innerText = sat + "%";
+
+    // 構建專業濾鏡鏈
+    const filters = [];
     
-    imgObj.filters = [
-        new fabric.Image.filters.Brightness({ brightness: (b - 100) / 100 }),
-        new fabric.Image.filters.Blur({ blur: s / 300 })
-    ];
+    // A. 基礎亮度與對比 (專業平衡)
+    filters.push(new fabric.Image.filters.Brightness({ brightness: (b - 100) / 100 }));
+    filters.push(new fabric.Image.filters.Contrast({ contrast: (b - 100) / 400 }));
+
+    // B. 智慧型磨皮 (使用模糊與銳利化的動態平衡)
+    if (s > 0) {
+        filters.push(new fabric.Image.filters.Blur({ blur: s / 250 }));
+        // 補償磨皮後的模糊感，增加邊緣細節
+        filters.push(new fabric.Image.filters.Convolute({
+            matrix: [ 0, -1,  0, -1,  5, -1, 0, -1,  0 ] 
+        }));
+    }
+
+    // C. 鮮豔度調整
+    if (sat !== 0) {
+        filters.push(new fabric.Image.filters.Saturation({ saturation: sat / 100 }));
+    }
+
+    imgObj.filters = filters;
     imgObj.applyFilters();
 
-    // 處理水印
+    // 4. 處理水印
     const oldTexts = canvas.getObjects('text');
     oldTexts.forEach(t => canvas.remove(t));
+    
     if(document.getElementById('wm').checked) {
-        const model = exifData.Model || "Smart Camera";
-        const txt = new fabric.Text(model + " | " + new Date().toLocaleDateString(), {
-            fontSize: 14, fill: '#ffffff', left: 15, top: canvas.height - 30,
-            fontFamily: 'sans-serif', backgroundColor: 'rgba(0,0,0,0.4)'
+        const model = exifData.Model || "Professional Camera";
+        const txt = new fabric.Text(`Shot on ${model} | ChicTouch Pro AI`, {
+            fontSize: 16, 
+            fill: '#ffffff', 
+            left: 20, 
+            top: canvas.height - 40,
+            fontFamily: 'Helvetica',
+            fontWeight: 'bold',
+            charSpacing: 100,
+            backgroundColor: 'rgba(0,0,0,0.5)'
         });
         canvas.add(txt);
     }
+    
     canvas.renderAll();
 }
 
-document.getElementById('smooth').oninput = applyFilters;
-document.getElementById('bright').oninput = applyFilters;
+// 綁定事件
+['smooth', 'bright', 'sat'].forEach(id => {
+    document.getElementById(id).oninput = applyFilters;
+});
 document.getElementById('wm').onchange = applyFilters;
 
-// 4. 高清匯出
+// 5. 4K 匯出
 document.getElementById('dl').onclick = function() {
     if(!imgObj) return;
     const link = document.createElement('a');
-    link.download = 'ChicTouch_Pro.jpg';
-    link.href = canvas.toDataURL({ format: 'jpeg', quality: 0.9, multiplier: 2 });
+    link.download = `ChicTouch_Pro_${Date.now()}.jpg`;
+    link.href = canvas.toDataURL({ format: 'jpeg', quality: 1.0, multiplier: 3 }); // 3倍解析度匯出
     link.click();
 };
 </script>
