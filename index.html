@@ -1,292 +1,441 @@
 <!DOCTYPE html>
-<html lang="zh-TW" data-theme="light">
+<html lang="zh-HK">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ChicTouch Pro | 專業 AI 美顏</title>
-    
-    <!-- 核心庫 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.0/dist/full.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
-    
-    <!-- MediaPipe 穩定版本連結 -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-    <style>
-        :root { --p-accent: #ff4d94; }
-        body { background-color: #f1f5f9; height: 100vh; height: -webkit-fill-available; overflow: hidden; }
-        .canvas-container { margin: 0 auto !important; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; }
-        
-        /* 手機版佈局優化 */
-        @media (max-width: 768px) {
-            .app-container { flex-direction: column; }
-            .canvas-area { height: 50vh; padding: 10px; }
-            .control-panel { height: 50vh; width: 100% !important; border-radius: 24px 24px 0 0; }
-        }
+<title>手痕靚靚 Lite</title>
 
-        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        
-        /* 診斷動畫 */
-        .ai-scanning { border: 2px solid var(--p-accent); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    </style>
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#111827;
+    color:white;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height:100vh;
+    padding:20px;
+}
+
+.container{
+    max-width:1100px;
+    margin:auto;
+}
+
+.title{
+    text-align:center;
+    margin-bottom:25px;
+}
+
+.title h1{
+    font-size:42px;
+    margin-bottom:10px;
+    color:#ffd54f;
+}
+
+.title p{
+    color:#cbd5e1;
+}
+
+.card{
+    background:#1f2937;
+    border-radius:20px;
+    padding:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);
+}
+
+.topbar{
+    display:flex;
+    gap:15px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+button,label.upload-btn{
+    background:#22c55e;
+    border:none;
+    padding:12px 18px;
+    border-radius:12px;
+    color:white;
+    cursor:pointer;
+    font-size:15px;
+    transition:.2s;
+}
+
+button:hover,
+label.upload-btn:hover{
+    transform:translateY(-2px);
+    opacity:.9;
+}
+
+.secondary{
+    background:#3b82f6;
+}
+
+.danger{
+    background:#ef4444;
+}
+
+input[type=file]{
+    display:none;
+}
+
+.workspace{
+    display:grid;
+    grid-template-columns:1fr 320px;
+    gap:20px;
+}
+
+.canvas-wrap{
+    background:#0f172a;
+    border-radius:20px;
+    padding:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:600px;
+    overflow:hidden;
+}
+
+canvas{
+    max-width:100%;
+    border-radius:12px;
+    background:black;
+}
+
+.panel{
+    background:#111827;
+    border-radius:20px;
+    padding:20px;
+}
+
+.panel h2{
+    margin-bottom:20px;
+    color:#fbbf24;
+}
+
+.control{
+    margin-bottom:25px;
+}
+
+.control label{
+    display:block;
+    margin-bottom:10px;
+    color:#e5e7eb;
+}
+
+.slider-value{
+    float:right;
+    color:#fbbf24;
+}
+
+input[type=range]{
+    width:100%;
+}
+
+.filter-buttons{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+
+.filter-buttons button{
+    width:100%;
+}
+
+.footer-btns{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-top:30px;
+}
+
+.notice{
+    margin-top:20px;
+    font-size:13px;
+    color:#94a3b8;
+    line-height:1.6;
+}
+
+@media(max-width:900px){
+    .workspace{
+        grid-template-columns:1fr;
+    }
+
+    .canvas-wrap{
+        min-height:400px;
+    }
+}
+</style>
 </head>
-<body class="flex flex-col">
 
-    <!-- 頂部：診斷與匯出 -->
-    <header class="h-14 bg-white border-b px-4 flex items-center justify-between z-50">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center text-white font-bold italic text-sm">CP</div>
-            <div class="flex flex-col">
-                <span class="text-xs font-black leading-none">手痕美美 Pro</span>
-                <span id="ai-status" class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">AI 引擎啟動中...</span>
-            </div>
+<body>
+
+<div class="container">
+
+    <div class="title">
+        <h1>✨ 手痕靚靚 Lite</h1>
+        <p>AI 感覺自拍美顏工具（HTML版）</p>
+    </div>
+
+    <div class="card">
+
+        <div class="topbar">
+
+            <label class="upload-btn">
+                📷 上載圖片
+                <input type="file" id="upload" accept="image/*">
+            </label>
+
+            <button id="resetBtn" class="danger">
+                ↺ 還原原圖
+            </button>
+
         </div>
-        <div class="flex gap-2">
-            <button onclick="resetAll()" class="btn btn-ghost btn-xs">重設</button>
-            <button id="btn-export" disabled onclick="exportImage()" class="btn btn-primary btn-sm rounded-full px-4 shadow-lg shadow-pink-200">匯出</button>
+
+        <div class="workspace">
+
+            <div class="canvas-wrap">
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="panel">
+
+                <h2>美顏控制台</h2>
+
+                <div class="control">
+                    <label>
+                        ✨ 美白
+                        <span class="slider-value" id="brightVal">100%</span>
+                    </label>
+                    <input type="range" id="brightness" min="50" max="180" value="100">
+                </div>
+
+                <div class="control">
+                    <label>
+                        🧴 磨皮
+                        <span class="slider-value" id="blurVal">0px</span>
+                    </label>
+                    <input type="range" id="blur" min="0" max="10" value="0">
+                </div>
+
+                <div class="control">
+                    <label>
+                        🌈 飽和度
+                        <span class="slider-value" id="satVal">100%</span>
+                    </label>
+                    <input type="range" id="saturation" min="50" max="200" value="100">
+                </div>
+
+                <div class="control">
+                    <label>
+                        ☀️ 柔光
+                        <span class="slider-value" id="contrastVal">100%</span>
+                    </label>
+                    <input type="range" id="contrast" min="50" max="180" value="100">
+                </div>
+
+                <div class="control">
+                    <label>🎨 一鍵風格</label>
+
+                    <div class="filter-buttons">
+
+                        <button onclick="presetNatural()">
+                            自然感
+                        </button>
+
+                        <button onclick="presetKorean()">
+                            韓系
+                        </button>
+
+                        <button onclick="presetVintage()">
+                            港風
+                        </button>
+
+                        <button onclick="presetCreamy()">
+                            奶油肌
+                        </button>
+
+                    </div>
+                </div>
+
+                <div class="footer-btns">
+
+                    <button class="secondary" onclick="downloadImage()">
+                        ⬇️ 下載作品
+                    </button>
+
+                </div>
+
+                <div class="notice">
+                    支援 JPG / PNG / WEBP<br>
+                    本版本為《手痕靚靚 Lite》<br>
+                    下一版可加入 AI 瘦面、大眼、人臉識別。
+                </div>
+
+            </div>
+
         </div>
-    </header>
 
-    <main class="flex-1 flex app-container overflow-hidden">
-        
-        <!-- 畫布區：固定顯示 -->
-        <section class="flex-1 canvas-area relative flex items-center justify-center bg-slate-100 overflow-hidden">
-            <div id="drop-zone" class="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400 cursor-pointer" onclick="document.getElementById('file-input').click()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <p class="text-sm font-bold">點擊上傳照片</p>
-                <p class="text-[10px]">支援本機 4K 高解析度處理</p>
-            </div>
-            <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFile(event)">
-            
-            <div id="canvas-wrapper" class="relative transition-all duration-500">
-                <canvas id="c"></canvas>
-            </div>
-        </section>
+    </div>
 
-        <!-- 控制面板：手機版為底部抽屜 -->
-        <aside class="control-panel w-80 bg-white border-l shadow-2xl flex flex-col sidebar-scroll overflow-y-auto">
-            <div class="p-6 space-y-8 pb-20">
-                
-                <!-- 1. 快速自動 -->
-                <div>
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">智能優化</h3>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="applyPreset('natural')" class="btn btn-outline btn-sm rounded-xl">自然</button>
-                        <button onclick="applyPreset('glam')" class="btn btn-secondary btn-sm rounded-xl">精緻</button>
-                    </div>
-                </div>
+</div>
 
-                <!-- 2. 手動美化 -->
-                <div class="space-y-6">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">影像細修</h3>
-                    
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-xs font-bold"><span>柔膚細緻</span><span id="v-blur" class="text-pink-500">0</span></div>
-                        <input type="range" id="i-blur" min="0" max="20" value="0" class="range range-xs range-secondary" oninput="syncFilters()">
-                    </div>
+<script>
 
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-xs font-bold"><span>亮肌美白</span><span id="v-bright" class="text-pink-500">100</span></div>
-                        <input type="range" id="i-bright" min="50" max="150" value="100" class="range range-xs" oninput="syncFilters()">
-                    </div>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-xs font-bold"><span>鮮豔色彩</span><span id="v-sat" class="text-pink-500">0</span></div>
-                        <input type="range" id="i-sat" min="-100" max="100" value="0" class="range range-xs range-info" oninput="syncFilters()">
-                    </div>
-                </div>
+const upload = document.getElementById('upload');
 
-                <!-- 3. AI 水印 (EXIF 讀取) -->
-                <div class="pt-6 border-t">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">專業水印</h3>
-                    <div class="form-control">
-                        <label class="label cursor-pointer p-0">
-                            <span class="label-text text-xs font-bold">顯示拍攝參數 (EXIF)</span> 
-                            <input type="checkbox" id="wm-toggle" class="toggle toggle-secondary toggle-sm" onchange="syncFilters()">
-                        </label>
-                    </div>
-                </div>
+const brightness = document.getElementById('brightness');
+const blur = document.getElementById('blur');
+const saturation = document.getElementById('saturation');
+const contrast = document.getElementById('contrast');
 
-                <!-- 4. 偵測診斷資訊 -->
-                <div class="p-4 bg-slate-50 rounded-2xl">
-                    <h4 class="text-[9px] font-bold text-slate-400 uppercase mb-2">AI 診斷日誌</h4>
-                    <ul id="diag-log" class="text-[9px] font-mono text-slate-500 space-y-1">
-                        <li>> 等待影像輸入...</li>
-                    </ul>
-                </div>
-            </div>
-        </aside>
-    </main>
+const brightVal = document.getElementById('brightVal');
+const blurVal = document.getElementById('blurVal');
+const satVal = document.getElementById('satVal');
+const contrastVal = document.getElementById('contrastVal');
 
-    <script>
-        let canvas, mainImg, faceMesh, exifData = {};
+const resetBtn = document.getElementById('resetBtn');
 
-        // 1. 深度診斷：模型載入邏輯
-        async function initAI() {
-            const status = document.getElementById('ai-status');
-            logDiag("正在載入 WebAssembly 模型...");
-            
-            try {
-                faceMesh = new FaceMesh({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-                });
+let originalImage = null;
 
-                faceMesh.setOptions({
-                    maxNumFaces: 1,
-                    refineLandmarks: true,
-                    minDetectionConfidence: 0.5
-                });
+upload.addEventListener('change', loadImage);
 
-                faceMesh.onResults(onFaceResults);
-                
-                status.innerText = "AI 引擎就緒";
-                status.classList.add('text-green-500');
-                logDiag("AI 引擎啟動成功");
-            } catch (e) {
-                status.innerText = "AI 啟動失敗";
-                logDiag("錯誤: 模型載入攔截");
-            }
-        }
+function loadImage(e){
 
-        // 2. 影像預處理：解決偵測失敗的核心
-        async function handleFile(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+    const file = e.target.files[0];
 
-            logDiag("讀取影像中...");
-            const reader = new FileReader();
-            reader.onload = (f) => {
-                const imgEl = new Image();
-                imgEl.src = f.target.result;
-                imgEl.onload = async () => {
-                    // 提取 EXIF
-                    EXIF.getData(imgEl, function() {
-                        exifData = EXIF.getAllTags(this);
-                        logDiag("EXIF 數據已提取: " + (exifData.Model || "未知設備"));
-                    });
+    if(!file) return;
 
-                    fabric.Image.fromURL(f.target.result, (img) => {
-                        setupCanvas(img, imgEl);
-                        
-                        // 關鍵修正：將影像縮小後再交給 AI 偵測，提高手機成功率
-                        const aiCanvas = document.createElement('canvas');
-                        const ctx = aiCanvas.getContext('2d');
-                        aiCanvas.width = 640; // 偵測用標準尺寸
-                        aiCanvas.height = 640 * (imgEl.height / imgEl.width);
-                        ctx.drawImage(imgEl, 0, 0, aiCanvas.width, aiCanvas.height);
-                        
-                        logDiag("啟動 AI 人臉掃描...");
-                        document.getElementById('canvas-wrapper').classList.add('ai-scanning');
-                        faceMesh.send({ image: aiCanvas });
-                    });
-                };
-            };
-            reader.readAsDataURL(file);
-        }
+    const reader = new FileReader();
 
-        function setupCanvas(img, imgEl) {
-            canvas.clear();
-            const maxW = window.innerWidth > 768 ? 800 : window.innerWidth - 40;
-            const maxH = window.innerHeight > 768 ? 600 : window.innerHeight / 2.5;
-            const scale = Math.min(maxW / imgEl.width, maxH / imgEl.height);
-            
-            canvas.setDimensions({ width: imgEl.width * scale, height: imgEl.height * scale });
-            img.set({ scaleX: scale, scaleY: scale, selectable: false });
-            canvas.add(img);
-            mainImg = img;
-            
-            document.getElementById('drop-zone').style.display = 'none';
-            document.getElementById('btn-export').disabled = false;
-            logDiag("畫布渲染完成");
-        }
+    reader.onload = function(event){
 
-        function onFaceResults(results) {
-            document.getElementById('canvas-wrapper').classList.remove('ai-scanning');
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                logDiag("成功: 偵測到人臉特徵點");
-                document.getElementById('ai-status').innerText = "已鎖定人臉";
-            } else {
-                logDiag("警報: 未偵測到人臉，改用全局模式");
-                document.getElementById('ai-status').innerText = "全局美化模式";
-            }
-        }
+        const img = new Image();
 
-        // 3. 效能優化：同步濾鏡
-        function syncFilters() {
-            if (!mainImg) return;
-            const blur = document.getElementById('i-blur').value;
-            const bright = document.getElementById('i-bright').value;
-            const sat = document.getElementById('i-sat').value;
+        img.onload = function(){
 
-            document.getElementById('v-blur').innerText = blur;
-            document.getElementById('v-bright').innerText = bright;
-            document.getElementById('v-sat').innerText = sat;
+            originalImage = img;
 
-            const f = fabric.Image.filters;
-            mainImg.filters = [
-                new f.Brightness({ brightness: (bright - 100) / 100 }),
-                new f.Saturation({ saturation: sat / 100 })
-            ];
-            if (blur > 0) mainImg.filters.push(new f.Blur({ blur: blur / 50 }));
+            canvas.width = img.width;
+            canvas.height = img.height;
 
-            mainImg.applyFilters();
-            
-            // 處理水印
-            renderWatermark();
-            canvas.requestRenderAll();
-        }
+            resetControls();
 
-        function renderWatermark() {
-            const old = canvas.getObjects('text');
-            old.forEach(o => canvas.remove(o));
-            
-            if (document.getElementById('wm-toggle').checked) {
-                const model = exifData.Model || "Premium Camera";
-                const date = exifData.DateTime ? exifData.DateTime.split(' ')[0] : new Date().toLocaleDateString();
-                const wm = new fabric.Text(`${model} | ${date}`, {
-                    fontSize: 14, fill: '#fff', left: 15, top: canvas.height - 25,
-                    fontFamily: 'Helvetica', backgroundColor: 'rgba(0,0,0,0.5)', padding: 5
-                });
-                canvas.add(wm);
-            }
-        }
+            renderImage();
 
-        function logDiag(msg) {
-            const log = document.getElementById('diag-log');
-            const li = document.createElement('li');
-            li.innerText = `> ${msg}`;
-            log.prepend(li);
-        }
+        };
 
-        function applyPreset(type) {
-            if (type === 'glam') {
-                document.getElementById('i-blur').value = 10;
-                document.getElementById('i-bright').value = 115;
-            } else {
-                document.getElementById('i-blur').value = 5;
-                document.getElementById('i-bright').value = 105;
-            }
-            syncFilters();
-        }
+        img.src = event.target.result;
+    };
 
-        function exportImage() {
-            const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.9, multiplier: 2 });
-            const link = document.createElement('a');
-            link.download = "chictouch_beauty.jpg";
-            link.href = dataURL;
-            link.click();
-        }
+    reader.readAsDataURL(file);
+}
 
-        function resetAll() { location.reload(); }
+function renderImage(){
 
-        document.addEventListener('DOMContentLoaded', () => {
-            canvas = new fabric.Canvas('c', { selection: false });
-            initAI();
-        });
-    </script>
+    if(!originalImage) return;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.filter = `
+        brightness(${brightness.value}%)
+        blur(${blur.value}px)
+        saturate(${saturation.value}%)
+        contrast(${contrast.value}%)
+    `;
+
+    ctx.drawImage(originalImage,0,0);
+
+    brightVal.innerText = brightness.value + "%";
+    blurVal.innerText = blur.value + "px";
+    satVal.innerText = saturation.value + "%";
+    contrastVal.innerText = contrast.value + "%";
+}
+
+brightness.addEventListener('input', renderImage);
+blur.addEventListener('input', renderImage);
+saturation.addEventListener('input', renderImage);
+contrast.addEventListener('input', renderImage);
+
+function resetControls(){
+
+    brightness.value = 100;
+    blur.value = 0;
+    saturation.value = 100;
+    contrast.value = 100;
+}
+
+resetBtn.addEventListener('click', ()=>{
+
+    resetControls();
+    renderImage();
+
+});
+
+function presetNatural(){
+
+    brightness.value = 108;
+    blur.value = 1;
+    saturation.value = 108;
+    contrast.value = 105;
+
+    renderImage();
+}
+
+function presetKorean(){
+
+    brightness.value = 120;
+    blur.value = 2;
+    saturation.value = 115;
+    contrast.value = 108;
+
+    renderImage();
+}
+
+function presetVintage(){
+
+    brightness.value = 95;
+    blur.value = 1;
+    saturation.value = 85;
+    contrast.value = 120;
+
+    renderImage();
+}
+
+function presetCreamy(){
+
+    brightness.value = 125;
+    blur.value = 3;
+    saturation.value = 105;
+    contrast.value = 95;
+
+    renderImage();
+}
+
+function downloadImage(){
+
+    if(!originalImage){
+        alert("請先上載圖片");
+        return;
+    }
+
+    const link = document.createElement('a');
+
+    link.download = '手痕靚靚作品.png';
+    link.href = canvas.toDataURL();
+
+    link.click();
+}
+
+</script>
+
 </body>
 </html>
