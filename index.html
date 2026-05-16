@@ -3,187 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手痕美美 ChicTouch - 穩定修正版</title>
+    <title>ChicTouch Pro - AI 穩定修正版</title>
     
+    <!-- 基礎庫 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.0/dist/full.css" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     
-    <!-- 強化版 MediaPipe 載入 -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <!-- 【修正點 1】使用具備完整路徑的 MediaPipe 資源 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.js" crossorigin="anonymous"></script>
 
     <style>
-        body { background-color: #f8fafc; transition: all 0.3s ease; }
-        [data-theme='dark'] body { background-color: #0f172a; }
-        .sidebar-scroll { scrollbar-width: thin; }
-        .canvas-container { margin: 0 auto !important; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); border-radius: 0.5rem; overflow: hidden; }
-        .loader-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 100; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        [data-theme='dark'] .loader-overlay { background: rgba(15,23,42,0.9); }
+        body { background-color: #f8fafc; transition: background 0.3s; }
+        .canvas-container { margin: 0 auto !important; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); border-radius: 1rem; overflow: hidden; }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 100; display: flex; align-items: center; justify-content: center; flex-direction: column; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="app-loader" class="loader-overlay hidden">
+    <!-- 載入指示器 -->
+    <div id="loader" class="loading-overlay">
         <span class="loading loading-ring loading-lg text-primary"></span>
-        <p id="loader-text" class="mt-4 font-bold text-slate-500 text-sm">正在初始化 AI 引擎...</p>
-        <button id="btn-skip-ai" class="btn btn-ghost btn-xs mt-4 hidden" onclick="skipAI()">跳過 AI 直接編輯</button>
+        <p id="loader-msg" class="mt-4 font-bold text-slate-500">正在喚醒 AI 引擎...</p>
+        <p class="text-[10px] opacity-50 mt-2">首次加載模型約需 5-10MB 流量</p>
     </div>
 
+    <!-- 頂部欄 -->
     <header class="h-16 bg-base-100 border-b flex items-center justify-between px-6 z-40 shadow-sm">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-            </div>
+            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black italic">CP</div>
             <div>
-                <h1 class="text-lg font-black tracking-tight">手痕美美 <span class="text-primary italic text-sm">ChicTouch</span></h1>
-                <p id="app-status" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">系統就緒</p>
+                <h1 class="text-lg font-black tracking-tight">手痕美美 <span class="text-primary italic text-sm text-rose-500">Stable AI</span></h1>
+                <p id="ai-status" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">初始化中</p>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button onclick="resetAll()" class="btn btn-ghost btn-sm text-xs">全部重設</button>
-            <button onclick="exportModal.showModal()" id="btn-export-trigger" class="btn btn-primary btn-sm rounded-full px-6" disabled>匯出照片</button>
-        </div>
+        <button onclick="executeExport()" class="btn btn-primary btn-sm rounded-full px-6">匯出成品</button>
     </header>
 
     <main class="flex-1 flex overflow-hidden flex-col md:flex-row">
-        <section class="flex-1 relative bg-base-200 p-4 flex items-center justify-center overflow-hidden">
-            <div id="drop-zone" class="absolute inset-0 z-10 flex flex-col items-center justify-center border-4 border-dashed border-transparent hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer" onclick="document.getElementById('file-input').click()">
-                <p class="text-lg font-bold">點擊或拖放照片</p>
-                <p class="text-xs opacity-50 mt-2">100% 本地處理，保護隱私</p>
+        <!-- 畫布區 -->
+        <section class="flex-1 relative bg-slate-200 p-8 flex items-center justify-center">
+            <div id="drop-zone" class="absolute inset-0 z-10 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-300/50 transition" onclick="document.getElementById('file-input').click()">
+                <p class="font-bold text-slate-500">點擊或拖放照片</p>
             </div>
-            <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFileUpload(event)">
-            <div id="canvas-wrapper" class="relative">
-                <canvas id="main-canvas"></canvas>
-            </div>
+            <input type="file" id="file-input" class="hidden" accept="image/*" onchange="processUpload(event)">
+            <canvas id="c"></canvas>
         </section>
 
-        <aside id="controls-panel" class="w-full md:w-80 bg-base-100 border-l sidebar-scroll overflow-y-auto hidden">
-            <div class="p-5 space-y-6">
-                <!-- 快速操作 -->
-                <div class="bg-base-200/50 p-4 rounded-2xl">
-                    <h3 class="text-[11px] font-black uppercase text-slate-400 mb-3 tracking-widest">快速操作</h3>
-                    <button onclick="applyOneClickBeauty()" class="btn btn-primary btn-sm w-full rounded-xl">一鍵美顏</button>
-                </div>
+        <!-- 工具欄 -->
+        <aside class="w-full md:w-80 bg-base-100 border-l p-6 space-y-6 overflow-y-auto">
+            <div class="card bg-rose-50 p-4 rounded-2xl border border-rose-100">
+                <h3 class="text-xs font-black text-rose-400 uppercase mb-3">一鍵美顏</h3>
+                <button onclick="quickBeauty()" class="btn btn-rose-500 bg-rose-500 hover:bg-rose-600 text-white border-none w-full btn-sm rounded-xl">自動優化</button>
+            </div>
 
-                <!-- 手動參數 -->
-                <div class="space-y-4">
-                    <h3 class="text-[11px] font-black uppercase text-slate-400 mb-1 tracking-widest">基本美化</h3>
-                    <div class="space-y-3" id="basic-filters">
-                        <!-- 柔膚、亮度、對比、飽和 -->
-                        <div>
-                            <div class="flex justify-between text-xs font-bold mb-1"><span>柔膚</span><span id="v-blur">0</span></div>
-                            <input type="range" data-filter="blur" min="0" max="20" value="0" class="range range-xs range-primary" oninput="updateFilter(this)">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-xs font-bold mb-1"><span>亮度</span><span id="v-brightness">100</span></div>
-                            <input type="range" data-filter="brightness" min="50" max="150" value="100" class="range range-xs" oninput="updateFilter(this)">
-                        </div>
-                    </div>
+            <div class="space-y-4">
+                <h3 class="text-xs font-black text-slate-400 uppercase">手動細修</h3>
+                <div>
+                    <div class="flex justify-between text-xs mb-1"><span>柔膚</span><span id="v-blur">0</span></div>
+                    <input type="range" id="i-blur" min="0" max="20" value="0" class="range range-xs range-primary" oninput="applyEffects()">
                 </div>
+                <div>
+                    <div class="flex justify-between text-xs mb-1"><span>亮度</span><span id="v-bright">100</span></div>
+                    <input type="range" id="i-bright" min="50" max="150" value="100" class="range range-xs" oninput="applyEffects()">
+                </div>
+            </div>
 
-                <!-- AI 狀態區 -->
-                <div class="pt-4 border-t border-dashed">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-[11px] font-black uppercase text-slate-400 tracking-widest">AI 局部增強</h3>
-                        <span id="face-badge" class="badge badge-ghost text-[9px] font-bold">等待圖片...</span>
-                    </div>
-                    <div id="face-controls" class="space-y-4 opacity-30 pointer-events-none">
-                        <p class="text-[10px] text-center opacity-60">偵測到人臉後自動開啟</p>
-                    </div>
+            <div id="face-panel" class="space-y-4 pt-4 border-t opacity-30 pointer-events-none transition-all">
+                <h3 class="text-xs font-black text-rose-400 uppercase flex items-center justify-between">
+                    AI 局部增強 <span class="badge badge-xs" id="face-badge">未偵測</span>
+                </h3>
+                <div>
+                    <div class="flex justify-between text-xs mb-1"><span>臉部提亮</span><span id="v-face">0</span></div>
+                    <input type="range" id="i-face" min="0" max="50" value="0" class="range range-xs range-secondary" oninput="applyEffects()">
                 </div>
             </div>
         </aside>
     </main>
 
-    <!-- 匯出 Modal -->
-    <dialog id="exportModal" class="modal">
-        <div class="modal-box rounded-3xl">
-            <h3 class="font-black text-xl mb-4">匯出設定</h3>
-            <div class="form-control">
-                <label class="label"><span class="label-text font-bold">品質 (JPEG)</span></label>
-                <input type="range" id="export-quality" min="10" max="100" value="90" class="range range-primary">
-            </div>
-            <div class="modal-action">
-                <button onclick="exportModal.close()" class="btn btn-ghost">取消</button>
-                <button onclick="executeExport()" class="btn btn-primary">下載照片</button>
-            </div>
-        </div>
-    </dialog>
-
     <script>
-        const State = {
-            canvas: null,
-            mainImg: null,
-            faceMesh: null,
-            isAiReady: false,
-            aiTimeout: null
-        };
+        let canvas, mainImg, faceMesh, isAiReady = false;
 
-        // 1. 初始化 AI (含錯誤補償)
-        async function initAI() {
-            setLoader(true, "AI 引擎初始化中...");
-            
-            // 設定 8 秒超時，避免模型卡死
-            State.aiTimeout = setTimeout(() => {
-                if (!State.isAiReady) {
-                    setLoader(false);
-                    document.getElementById('face-badge').innerText = "AI 載入超時 (改用手動)";
-                    document.getElementById('btn-skip-ai').classList.remove('hidden');
-                }
-            }, 8000);
-
+        // 【修正點 2】強化版模型路徑引導
+        async function setupAI() {
             try {
-                if (typeof FaceMesh === 'undefined') throw new Error("CDN 載入失敗");
-
-                State.faceMesh = new FaceMesh({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                faceMesh = new FaceMesh({
+                    locateFile: (file) => {
+                        // 強制指向具備版本號的 CDN 路徑，確保 .wasm 和 .tflite 檔案能被找到
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
+                    }
                 });
 
-                State.faceMesh.setOptions({
+                faceMesh.setOptions({
                     maxNumFaces: 1,
                     refineLandmarks: true,
-                    minDetectionConfidence: 0.5
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
                 });
 
-                State.faceMesh.onResults(onFaceResults);
+                faceMesh.onResults(onResults);
                 
-                // 測試模型初始化
-                State.isAiReady = true;
-                clearTimeout(State.aiTimeout);
-                setLoader(false);
-                console.log("AI 引擎就緒");
+                // 預熱引擎
+                const dummyCanvas = document.createElement('canvas');
+                dummyCanvas.width = 1; dummyCanvas.height = 1;
+                await faceMesh.send({ image: dummyCanvas });
+                
+                isAiReady = true;
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('ai-status').innerText = "AI 引擎已就緒";
+                document.getElementById('ai-status').classList.add('text-green-500');
             } catch (e) {
-                console.error("AI 初始化失敗:", e);
-                document.getElementById('face-badge').innerText = "AI 啟動失敗";
-                setLoader(false);
+                console.error("AI 啟動失敗:", e);
+                document.getElementById('loader-msg').innerText = "AI 啟動失敗，請重新整理或檢查網路";
+                document.getElementById('ai-status').innerText = "僅限手動模式";
             }
         }
 
-        // 2. 處理圖片上傳
-        async function handleFileUpload(e) {
+        // 畫布初始化
+        canvas = new fabric.Canvas('c', { selection: false, backgroundColor: '#fff' });
+
+        async function processUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            setLoader(true, "影像讀取中...");
             const reader = new FileReader();
             reader.onload = (f) => {
                 const imgEl = new Image();
                 imgEl.src = f.target.result;
                 imgEl.onload = async () => {
-                    // 繪製到畫布
                     fabric.Image.fromURL(f.target.result, (img) => {
-                        setupCanvas(img, imgEl);
+                        const scale = Math.min(800 / imgEl.width, 600 / imgEl.height);
+                        canvas.clear();
+                        canvas.setDimensions({ width: imgEl.width * scale, height: imgEl.height * scale });
+                        img.set({ scaleX: scale, scaleY: scale, selectable: false });
+                        canvas.add(img);
+                        mainImg = img;
+                        document.getElementById('drop-zone').style.display = 'none';
                         
-                        // 執行 AI 偵測 (如果有準備好)
-                        if (State.isAiReady) {
-                            setLoader(true, "AI 臉部辨識中...");
-                            State.faceMesh.send({ image: imgEl }).catch(err => {
-                                console.warn("偵測執行出錯:", err);
-                                setLoader(false);
-                            });
-                        } else {
-                            setLoader(false);
+                        // 執行 AI 偵測
+                        if (isAiReady) {
+                            document.getElementById('face-badge').innerText = "辨識中...";
+                            faceMesh.send({ image: imgEl });
                         }
                     });
                 };
@@ -191,95 +153,56 @@
             reader.readAsDataURL(file);
         }
 
-        function setupCanvas(img, imgEl) {
-            const maxDim = 1200;
-            let w = imgEl.width, h = imgEl.height;
-            if (w > maxDim || h > maxDim) {
-                const r = Math.min(maxDim / w, maxDim / h);
-                w *= r; h *= r;
-            }
-
-            State.canvas.clear();
-            State.canvas.setDimensions({ width: w, height: h });
-            img.set({ scaleX: w / imgEl.width, scaleY: h / imgEl.height, selectable: false });
-            State.canvas.add(img);
-            State.canvas.centerObject(img);
-            State.mainImg = img;
-
-            document.getElementById('drop-zone').classList.add('hidden');
-            document.getElementById('controls-panel').classList.remove('hidden');
-            document.getElementById('btn-export-trigger').disabled = false;
-            resizePreview();
-        }
-
-        function onFaceResults(results) {
-            setLoader(false);
+        function onResults(results) {
+            const panel = document.getElementById('face-panel');
             const badge = document.getElementById('face-badge');
+            
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                badge.innerText = "已鎖定臉部";
-                badge.className = "badge badge-success text-white text-[9px] font-bold";
-                // 這裡可以解鎖局部功能
+                panel.classList.remove('opacity-30', 'pointer-events-none');
+                badge.innerText = "已鎖定人臉";
+                badge.className = "badge badge-success text-white badge-xs";
             } else {
-                badge.innerText = "未偵測到人臉";
+                panel.classList.add('opacity-30', 'pointer-events-none');
+                badge.innerText = "未偵測到";
             }
         }
 
-        // 3. 濾鏡邏輯
-        function updateFilter(el) {
-            if (!State.mainImg) return;
-            const type = el.dataset.filter;
-            const val = parseFloat(el.value);
-            document.getElementById(`v-${type}`).innerText = val;
+        function applyEffects() {
+            if (!mainImg) return;
+            const blur = document.getElementById('i-blur').value;
+            const bright = document.getElementById('i-bright').value;
+            const face = document.getElementById('i-face').value;
 
-            const f = fabric.Image.filters;
-            const filters = [];
+            document.getElementById('v-blur').innerText = blur;
+            document.getElementById('v-bright').innerText = bright;
+            document.getElementById('v-face').innerText = face;
+
+            const filters = [
+                new fabric.Image.filters.Brightness({ brightness: (bright - 100) / 100 })
+            ];
             
-            const br = parseFloat(document.querySelector('[data-filter="brightness"]').value);
-            filters.push(new f.Brightness({ brightness: (br - 100) / 100 }));
+            if (blur > 0) filters.push(new fabric.Image.filters.Blur({ blur: blur / 50 }));
 
-            const bl = parseFloat(document.querySelector('[data-filter="blur"]').value);
-            if (bl > 0) filters.push(new f.Blur({ blur: bl / 40 }));
-
-            State.mainImg.filters = filters;
-            State.mainImg.applyFilters();
-            State.canvas.requestRenderAll();
+            mainImg.filters = filters;
+            mainImg.applyFilters();
+            canvas.renderAll();
         }
 
-        // 工具函式
-        function setLoader(show, text) {
-            const l = document.getElementById('app-loader');
-            document.getElementById('loader-text').innerText = text || "";
-            l.classList.toggle('hidden', !show);
+        function quickBeauty() {
+            document.getElementById('i-blur').value = 10;
+            document.getElementById('i-bright').value = 110;
+            applyEffects();
         }
-
-        function skipAI() {
-            setLoader(false);
-            State.isAiReady = false;
-        }
-
-        function resizePreview() {
-            const container = document.querySelector('section');
-            const ratio = Math.min((container.clientWidth-40)/State.canvas.width, (container.clientHeight-40)/State.canvas.height);
-            document.getElementById('canvas-wrapper').style.transform = `scale(${ratio})`;
-        }
-
-        function resetAll() { location.reload(); }
 
         function executeExport() {
-            const dataURL = State.canvas.toDataURL({ format: 'jpeg', quality: document.getElementById('export-quality').value/100, multiplier: 1.5 });
+            const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.9 });
             const link = document.createElement('a');
             link.download = "chictouch-beauty.jpg";
             link.href = dataURL;
             link.click();
-            exportModal.close();
         }
 
-        // 啟動
-        document.addEventListener('DOMContentLoaded', () => {
-            State.canvas = new fabric.Canvas('main-canvas', { selection: false });
-            initAI();
-            window.onresize = resizePreview;
-        });
+        setupAI();
     </script>
 </body>
 </html>
